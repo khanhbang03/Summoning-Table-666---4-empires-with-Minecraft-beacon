@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Villing × Xuân Ca × Phạm Nhật Vượng — Forming a Triangle</title>
+<style>
+  :root{--bg:#071022;--card:#0f1724;--accent:#ff6b6b;color-scheme:dark}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+  body{background:linear-gradient(180deg,#031028,#071227);display:flex}
+  #app{display:flex;flex:1;gap:12px;padding:12px}
+  #canvasWrap{flex:1;min-height:calc(100vh - 24px);background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:12px;padding:8px}
+  canvas{width:100%;height:100%;display:block;border-radius:8px}
+  .panel{width:360px;background:var(--card);color:#dbeafe;padding:12px;border-radius:12px}
+  h1{font-size:16px;margin:0 0 8px}
+  .muted{color:#9fb0c8;font-size:13px}
+  .stats{margin-top:12px;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px}
+  .stat-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed rgba(255,255,255,0.03)}
+  .btn{padding:8px 10px;border-radius:8px;border:none;background:var(--accent);color:white;cursor:pointer}
+  .small{font-size:13px}
+  .legend{display:flex;gap:8px;margin-top:8px}
+  .avatar{display:flex;gap:8px;align-items:center}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="canvasWrap"></div>
+  <div class="panel">
+    <h1>Villing × Xuân Ca × Phạm Nhật Vượng</h1>
+    <div class="muted">Three characters sit at the triangle's vertices. Drag any avatar to reshape the triangle — the page shows side lengths, perimeter, area, and angles in real time.</div>
+
+    <div class="stats" id="stats">
+      <div class="stat-row"><div class="small">Side AB (Villing — Xuân Ca)</div><div id="sAB">—</div></div>
+      <div class="stat-row"><div class="small">Side BC (Xuân Ca — Phạm N. V.)</div><div id="sBC">—</div></div>
+      <div class="stat-row"><div class="small">Side CA (Phạm N. V. — Villing)</div><div id="sCA">—</div></div>
+      <div class="stat-row"><div class="small">Perimeter</div><div id="perim">—</div></div>
+      <div class="stat-row"><div class="small">Area</div><div id="area">—</div></div>
+      <div class="stat-row"><div class="small">Angles (deg) A / B / C</div><div id="angles">—</div></div>
+    </div>
+
+    <div style="margin-top:12px">
+      <button id="resetBtn" class="btn">Reset Positions</button>
+      <button id="exportSVG" class="btn" style="background:#0ea5a4">Export SVG</button>
+    </div>
+
+    <div class="legend">
+      <div class="avatar"><div style="width:18px;height:18px;border-radius:4px;background:#d6b7f7"></div>Villing</div>
+      <div class="avatar"><div style="width:18px;height:18px;border-radius:4px;background:#fca5a5"></div>Xuân Ca</div>
+      <div class="avatar"><div style="width:18px;height:18px;border-radius:4px;background:#fde68a"></div>Phạm N. V.</div>
+    </div>
+
+    <div style="margin-top:12px;font-size:13px;color:#9fb0c8">Tip: drag the colored spheres to change the triangle. Double-click an avatar to snap it to center.</div>
+  </div>
+</div>
+
+<!-- Three.js -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.156.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.156.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.156.0/examples/js/controls/DragControls.js"></script>
+
+<script>
+// Scene
+const container = document.getElementById('canvasWrap');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x071226);
+const renderer = new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(container.clientWidth, container.clientHeight);
+container.appendChild(renderer.domElement);
+
+const camera = new THREE.PerspectiveCamera(50, container.clientWidth/container.clientHeight, 0.1, 1000);
+camera.position.set(0,6,10);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+const light = new THREE.DirectionalLight(0xffffff, 0.9);
+light.position.set(5,10,7);
+scene.add(light);
+scene.add(new THREE.AmbientLight(0x7890a0, 0.4));
+
+// Ground grid
+const grid = new THREE.GridHelper(30, 30, 0x264a5a, 0x14232b);
+scene.add(grid);
+
+// Avatars (spheres) with labels
+function createAvatar(name, color){
+  const g = new THREE.SphereGeometry(0.4, 24, 24);
+  const m = new THREE.MeshStandardMaterial({color});
+  const mesh = new THREE.Mesh(g, m);
+  mesh.userData.name = name;
+  return mesh;
+}
+
+const villing = createAvatar('Villing', 0xd6b7f7);
+const xuanca = createAvatar('Xuân Ca', 0xfca5a5);
+const pham = createAvatar('PhamNhatVuong', 0xfde68a);
+
+// Initial positions (forming a triangle)
+villing.position.set(-3,0.4,0);
+xuanca.position.set(2,0.4,1.5);
+pham.position.set(0,0.4,-2.5);
+
+scene.add(villing, xuanca, pham);
+
+// Line (triangle) between avatars
+const lineMat = new THREE.LineBasicMaterial({color:0xffffff,linewidth:2});
+let triLine;
+function updateLine(){
+  const pts = [villing.position, xuanca.position, pham.position, villing.position];
+  const g = new THREE.BufferGeometry().setFromPoints(pts);
+  if(triLine) { triLine.geometry.dispose(); scene.remove(triLine); }
+  triLine = new THREE.Line(g, lineMat);
+  scene.add(triLine);
+}
+updateLine();
+
+// Drag controls
+const dragObjects = [villing, xuanca, pham];
+const dragCtrl = new THREE.DragControls(dragObjects, camera, renderer.domElement);
+dragCtrl.addEventListener('dragstart', function (e) { controls.enabled = false; });
+dragCtrl.addEventListener('dragend', function (e) { controls.enabled = true; computeStats(); });
+dragCtrl.addEventListener('drag', function(e){ updateLine(); computeStats(); });
+
+// Double-click to snap to center
+renderer.domElement.addEventListener('dblclick', (ev)=>{
+  // raycast to find clicked avatar
+  const rect = renderer.domElement.getBoundingClientRect();
+  const x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+  const y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+  const mouse = new THREE.Vector2(x,y);
+  const rc = new THREE.Raycaster();
+  rc.setFromCamera(mouse, camera);
+  const inter = rc.intersectObjects(dragObjects);
+  if(inter.length) inter[0].object.position.set(0,0.4,0);
+  updateLine(); computeStats();
+});
+
+// Compute distances, perimeter, area, angles
+function dist(a,b){ return a.distanceTo(b); }
+function computeStats(){
+  const A = villing.position.clone();
+  const B = xuanca.position.clone();
+  const C = pham.position.clone();
+  const AB = dist(A,B);
+  const BC = dist(B,C);
+  const CA = dist(C,A);
+  const perim = AB + BC + CA;
+  // Heron's formula for area
+  const s = perim/2;
+  const area = Math.max(0, Math.sqrt(Math.max(0, s*(s-AB)*(s-BC)*(s-CA))));
+  // angles via law of cosines
+  function angle(a,b,c){ // angle at b for triangle a-b-c
+    const ab = a.distanceTo(b); const cb = c.distanceTo(b); const ac = a.distanceTo(c);
+    // angle at b between ba and bc
+    const cos = (ab*ab + cb*cb - ac*ac) / (2*ab*cb);
+    return Math.acos(Math.min(1, Math.max(-1, cos))) * 180/Math.PI;
+  }
+  const angleA = angle(B,A,C);
+  const angleB = angle(A,B,C);
+  const angleC = angle(A,C,B);
+
+  // Update UI (rounded)
+  document.getElementById('sAB').textContent = AB.toFixed(3);
+  document.getElementById('sBC').textContent = BC.toFixed(3);
+  document.getElementById('sCA').textContent = CA.toFixed(3);
+  document.getElementById('perim').textContent = perim.toFixed(3);
+  document.getElementById('area').textContent = area.toFixed(3);
+  document.getElementById('angles').textContent = [angleA,angleB,angleC].map(a=>a.toFixed(1)).join(' / ');
+}
+computeStats();
+
+// Reset
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  villing.position.set(-3,0.4,0);
+  xuanca.position.set(2,0.4,1.5);
+  pham.position.set(0,0.4,-2.5);
+  updateLine(); computeStats();
+});
+
+// Export simple SVG representation of triangle
+document.getElementById('exportSVG').addEventListener('click', ()=>{
+  // map 3D positions to 2D canvas coords (top-down XZ)
+  const scale = 40; const offsetX = 200; const offsetY = 200;
+  const points = [villing.position, xuanca.position, pham.position];
+  const pts2 = points.map(p=>`${offsetX + p.x*scale},${offsetY - p.z*scale}`);
+  const svg = `<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="100%" height="100%" fill="#071226"/><polygon points="${pts2.join(' ')}" fill="rgba(255,255,255,0.04)" stroke="#9fb0c8" stroke-width="2"/><text x="${offsetX + points[0].x*scale + 6}" y="${offsetY - points[0].z*scale - 6}" fill="#d6b7f7">Villing</text><text x="${offsetX + points[1].x*scale + 6}" y="${offsetY - points[1].z*scale - 6}" fill="#fca5a5">Xuân Ca</text><text x="${offsetX + points[2].x*scale + 6}" y="${offsetY - points[2].z*scale - 6}" fill="#fde68a">Pham N. V.</text></svg>`;
+  const blob = new Blob([svg], {type:'image/svg+xml'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'triangle_villing_xuanca_pham.svg'; a.click(); URL.revokeObjectURL(url);
+});
+
+// Render loop
+function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene,camera); }
+animate();
+
+// Resize
+window.addEventListener('resize', ()=>{ camera.aspect = container.clientWidth/container.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(container.clientWidth, container.clientHeight); });
+
+</script>
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Summoning Table 666 — Square of Four Empires</title>
+  <style>
+    body {
+      margin: 0;
+      background: radial-gradient(circle at center, #000010, #000000);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      color: #fff;
+      font-family: 'Trebuchet MS', sans-serif;
+    }
+    canvas {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #audioToggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 999;
+      padding: 8px 12px;
+      background: #222;
+      color: #fff;
+      border: 2px solid #666;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #seal {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 20px;
+      background: #550000;
+      color: #fff;
+      border: 2px solid #ff0000;
+      border-radius: 12px;
+      cursor: pointer;
+      z-index: 999;
+      font-weight: bold;
+    }
+    #tooltip {
+      position: fixed;
+      padding: 8px;
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      border-radius: 6px;
+      font-size: 14px;
+      pointer-events: none;
+      display: none;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="universe"></canvas>
+  <div id="tooltip"></div>
+  <button id="audioToggle">🔊 Mute</button>
+  <button id="seal">INVOKE</button>
+
+  <!-- Audio Elements -->
+  <audio id="ambientHum" src="https://cdn.pixabay.com/download/audio/2021/08/08/audio_48aef7cc63.mp3?filename=dark-ambient-drone-6203.mp3" loop></audio>
+  <audio id="chant" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_0b13a5f9af.mp3?filename=choir-chant-10376.mp3"></audio>
+
+  <script>
+    const canvas = document.getElementById('universe');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let invoked = false;
+    let rotation = 0;
+    let rotationSpeed = 0.002;
+    let activeDynasty = null;
+
+    // Audio setup
+    const hum = document.getElementById('ambientHum');
+    const chant = document.getElementById('chant');
+    const toggleBtn = document.getElementById('audioToggle');
+    let isMuted = false;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      hum.volume = 0.3;
+      hum.play().catch(e => console.warn("Autoplay blocked:", e));
+    });
+
+    function invokeRitual() {
+      chant.currentTime = 0;
+      chant.volume = 0.8;
+      chant.play().catch(e => console.warn("Chant blocked:", e));
+      invoked = true;
+      rotationSpeed = 0.01;
+      setTimeout(() => rotationSpeed = 0.002, 6000);
+      // randomly choose dynasty to highlight
+      const dynasties = ["Villing","XuanCa","PhamNhatVuong","Naruto"];
+      activeDynasty = dynasties[Math.floor(Math.random() * dynasties.length)];
+    }
+
+    document.getElementById('seal').addEventListener('click', () => {
+      invokeRitual();
+    });
+
+    toggleBtn.addEventListener('click', () => {
+      isMuted = !isMuted;
+      hum.muted = isMuted;
+      chant.muted = isMuted;
+      toggleBtn.textContent = isMuted ? "🔇 Unmute" : "🔊 Mute";
+    });
+
+    // Starfield background
+    let stars = [];
+    for (let i = 0; i < 200; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2,
+        speed: Math.random() * 0.5 + 0.2
+      });
+    }
+
+    let mouseX = canvas.width/2, mouseY = canvas.height/2;
+    window.addEventListener('mousemove', e => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    const tooltip = document.getElementById('tooltip');
+
+    function showTooltip(text, x, y) {
+      tooltip.style.left = x + 10 + 'px';
+      tooltip.style.top = y + 10 + 'px';
+      tooltip.innerText = text;
+      tooltip.style.display = 'block';
+    }
+
+    function hideTooltip() {
+      tooltip.style.display = 'none';
+    }
+
+    // Main loop
+    function draw() {
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw stars
+      ctx.fillStyle = '#fff';
+      stars.forEach(s => {
+        ctx.fillRect(s.x, s.y, s.size, s.size);
+        s.y += s.speed;
+        if (s.y > canvas.height) s.y = 0;
+      });
+
+      let tiltX = (mouseX - canvas.width/2) / canvas.width * 0.5;
+      let tiltY = (mouseY - canvas.height/2) / canvas.height * 0.5;
+
+      ctx.save();
+      ctx.translate(canvas.width/2, canvas.height/2);
+      ctx.rotate(rotation);
+      ctx.transform(1, tiltY, tiltX, 1, 0, 0);
+
+      const size = 200;
+      const bananaOrbit = 40 * Math.sin(Date.now()/1000);
+
+      const points = [
+        {x: -size, y: -size, color: 'silver', name: 'Villing', lore: 'Dynasty of Eternal Geometrists'},
+        {x: size, y: -size, color: 'green', name: 'XuanCa', lore: 'Dynasty of Song of Blossoms'},
+        {x: size, y: size, color: 'gold', name: 'PhamNhatVuong', lore: 'Dynasty of Iron and Gold'},
+        {x: -size, y: size, color: 'orange', name: 'Naruto', lore: 'Empire of Spirals & Shadows'}
+      ];
+
+      // Draw square lines
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = invoked ? 'rgba(255,0,0,0.8)' : 'rgba(200,200,255,0.5)';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Cross lines
+      if (invoked) {
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        ctx.lineTo(points[2].x, points[2].y);
+        ctx.moveTo(points[1].x, points[1].y);
+        ctx.lineTo(points[3].x, points[3].y);
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Draw crests
+      points.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 20, 0, Math.PI*2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.stroke();
+
+        // Banana near Naruto
+        if (p.name === 'Naruto') {
+          ctx.beginPath();
+          ctx.ellipse(p.x + 50, p.y + bananaOrbit/10, 10, 20, Math.PI/4, 0, Math.PI*2);
+          ctx.fillStyle = 'yellow';
+          ctx.fill();
+          ctx.stroke();
+        }
+      });
+
+      ctx.restore();
+
+      // Beacon effect color
+      if (invoked) {
+        let beaconColor = 'rgba(255,255,200,0.8)';
+        if (activeDynasty === 'Villing') beaconColor = 'rgba(192,192,192,0.8)';
+        if (activeDynasty === 'XuanCa') beaconColor = 'rgba(0,255,128,0.8)';
+        if (activeDynasty === 'PhamNhatVuong') beaconColor = 'rgba(255,215,0,0.8)';
+        if (activeDynasty === 'Naruto') beaconColor = 'rgba(255,165,0,0.8)';
+
+        let gradient = ctx.createLinearGradient(canvas.width/2, canvas.height/2, canvas.width/2, 0);
+        gradient.addColorStop(0, beaconColor);
+        gradient.addColorStop(1, 'rgba(255,255,200,0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(canvas.width/2 - 20, 0, 40, canvas.height/2);
+      }
+
+      rotation += rotationSpeed;
+      requestAnimationFrame(draw);
+    }
+
+    draw();
+  </script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Summoning Table 666 — Square of Four Empires</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      background: radial-gradient(circle at center, #0a0a0f, #000);
+      overflow: hidden;
+      color: #fff;
+      font-family: 'Cinzel', serif;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #seal {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #222, #000);
+      border: 3px solid crimson;
+      box-shadow: 0 0 20px crimson, 0 0 60px crimson;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+      cursor: pointer;
+      z-index: 2;
+    }
+    .crest {
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 0.8em;
+      border: 2px solid #888;
+      transition: transform 0.3s, box-shadow 0.3s;
+      padding: 5px;
+    }
+    .crest:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 20px #fff;
+    }
+    #villing { top: 15%; left: 20%; border-color: silver; }
+    #xuan { top: 15%; right: 20%; border-color: limegreen; }
+    #pham { bottom: 15%; left: 20%; border-color: gold; }
+    #naruto { bottom: 15%; right: 20%; border-color: orange; }
+    #banana {
+      position: absolute;
+      bottom: 10%;
+      right: 45%;
+      width: 60px;
+      height: 30px;
+      background: linear-gradient(to right, yellow, goldenrod);
+      border-radius: 30px 30px 10px 10px;
+      box-shadow: 0 0 10px gold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6em;
+      cursor: pointer;
+    }
+    #banana:hover::after {
+      content: "Banana of Patience: Grants overtime wisdom.";
+      position: absolute;
+      bottom: 50px;
+      background: rgba(0,0,0,0.8);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.7em;
+      white-space: nowrap;
+    }
+    #snakes {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .snake {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: radial-gradient(circle at center, #0f0, transparent);
+      border-radius: 50%;
+      opacity: 0.6;
+      animation: slither 10s linear infinite;
+    }
+    @keyframes slither {
+      0% { transform: translate(10%, 10%); }
+      25% { transform: translate(80%, 20%); }
+      50% { transform: translate(50%, 80%); }
+      75% { transform: translate(20%, 60%); }
+      100% { transform: translate(10%, 10%); }
+    }
+    .beacon {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 100%;
+      background: linear-gradient(to top, rgba(255,0,0,0.6), transparent);
+      animation: pulseBeacon 3s ease-in-out infinite;
+      z-index: 1;
+    }
+    @keyframes pulseBeacon {
+      0%,100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+    .particle {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: rgba(255,255,255,0.7);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: floatUp 4s linear infinite;
+    }
+    @keyframes floatUp {
+      0% { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(-200px); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="aura"></canvas>
+  <div id="seal">666</div>
+  <div id="villing" class="crest">Villing<br><small>Eternal Geometrists</small></div>
+  <div id="xuan" class="crest">Xuân Ca<br><small>Song of Blossoms</small></div>
+  <div id="pham" class="crest">Phạm Nhật Vượng<br><small>Empire of Iron & Gold</small></div>
+  <div id="naruto" class="crest">Naruto<br><small>Empire of Spirals & Shadows</small></div>
+  <div id="banana">🍌</div>
+  <div id="snakes"></div>
+  <div class="beacon" id="beacon"></div>
+
+  <script>
+    const aura = document.getElementById('aura');
+    const ctx = aura.getContext('2d');
+    aura.width = window.innerWidth;
+    aura.height = window.innerHeight;
+
+    function drawGlow() {
+      ctx.clearRect(0,0,aura.width,aura.height);
+      let gradient = ctx.createRadialGradient(aura.width/2,aura.height/2,50,aura.width/2,aura.height/2,500);
+      gradient.addColorStop(0, 'rgba(255,0,0,0.4)');
+      gradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0,0,aura.width,aura.height);
+    }
+    setInterval(drawGlow, 100);
+
+    // Rune particles
+    function spawnParticle() {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = (window.innerWidth/2 + (Math.random()*200-100)) + 'px';
+      p.style.top = (window.innerHeight/2 + (Math.random()*200-100)) + 'px';
+      document.body.appendChild(p);
+      setTimeout(()=>p.remove(),4000);
+    }
+    setInterval(spawnParticle, 300);
+
+    // Aryan Panicker's Snakes (3 guardians)
+    const snakes = document.getElementById('snakes');
+    for (let i=0;i<3;i++){
+      const s=document.createElement('div');
+      s.className='snake';
+      s.style.animationDelay = (i*3)+'s';
+      snakes.appendChild(s);
+    }
+
+    // Beacon color shifts
+    const beacon = document.getElementById('beacon');
+    const seal = document.getElementById('seal');
+    seal.addEventListener('click', ()=>{
+      const dynasties = ["silver","limegreen","gold","orange","green"];
+      const colors = {
+        silver: 'rgba(192,192,192,0.6)',
+        limegreen: 'rgba(50,205,50,0.6)',
+        gold: 'rgba(255,215,0,0.6)',
+        orange: 'rgba(255,165,0,0.6)',
+        green: 'rgba(0,255,0,0.6)'
+      };
+      const chosen = dynasties[Math.floor(Math.random()*dynasties.length)];
+      beacon.style.background = `linear-gradient(to top, ${colors[chosen]}, transparent)`;
+    });
+  </script>
+</body>
+</html>

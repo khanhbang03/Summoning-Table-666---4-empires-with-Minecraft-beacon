@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Villing on XY Plane — Triangle Counter (Super Advanced)</title>
+  <style>
+    :root{--bg:#0b1020;--panel:#0f1724;--accent:#7c3aed;--muted:#9aa4b2;color-scheme:dark}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    body{background:linear-gradient(180deg,#071029 0%, #081827 60%);display:flex;gap:12px}
+    #app{display:flex;flex:1;min-height:100vh}
+    #canvas-wrap{flex:1;position:relative;overflow:hidden}
+    canvas{display:block}
+    .ui{width:360px;background:linear-gradient(180deg,var(--panel),#07101a);padding:16px;color:#e6eef8;border-left:1px solid rgba(255,255,255,0.03)}
+    h1{font-size:18px;margin:0 0 8px}
+    p.lead{margin:0 0 16px;font-size:13px;color:var(--muted)}
+    label{display:block;font-size:12px;margin-top:10px;color:#cfd9ea}
+    input[type=range]{width:100%}
+    .row{display:flex;gap:8px;align-items:center}
+    .btn{background:var(--accent);border:none;color:white;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .muted{color:var(--muted);font-size:12px}
+    .counts{margin-top:12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:10px;border-radius:8px}
+    .counts div{display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px dashed rgba(255,255,255,0.02)}
+    .credits{font-size:12px;color:var(--muted);margin-top:12px}
+    .footer{position:absolute;left:12px;bottom:12px;background:rgba(2,6,23,0.6);padding:8px;border-radius:8px;color:#cfe1ff;font-size:13px}
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="canvas-wrap"></div>
+  <div class="ui">
+    <h1>Villing on the XY Plane — Triangle Counter</h1>
+    <p class="lead">A tiny 3D scene that builds a stylized 'Villing' character, places her sitting on the XY plane, and returns the triangle counts for each part and the combined mesh + plane. Change mesh resolution to see how triangles change.</p>
+
+    <label>Head segments (<span id="headSegLabel">16</span>)</label>
+    <input id="headSeg" type="range" min="4" max="64" value="16">
+
+    <label>Body radial segments (<span id="bodySegLabel">12</span>)</label>
+    <input id="bodySeg" type="range" min="4" max="64" value="12">
+
+    <label>Limb radial segments (<span id="limbSegLabel">8</span>)</label>
+    <input id="limbSeg" type="range" min="3" max="32" value="8">
+
+    <label>Plane width / segments (<span id="planeSegLabel">20</span>)</label>
+    <input id="planeSeg" type="range" min="1" max="64" value="20">
+
+    <div class="row" style="margin-top:10px">
+      <button id="rebuild" class="btn">Rebuild & Count</button>
+      <button id="toggleWire" class="btn" style="background:#2b3240">Toggle Wireframe</button>
+    </div>
+
+    <div class="counts" id="counts">
+      <div><strong>Part</strong><strong class="muted">Triangles</strong></div>
+      <div><span>Head</span><span id="cHead">—</span></div>
+      <div><span>Torso</span><span id="cTorso">—</span></div>
+      <div><span>Left Leg</span><span id="cLLeg">—</span></div>
+      <div><span>Right Leg</span><span id="cRLeg">—</span></div>
+      <div><span>Left Arm</span><span id="cLArm">—</span></div>
+      <div><span>Right Arm</span><span id="cRArm">—</span></div>
+      <div><span>Seat / Cushion</span><span id="cSeat">—</span></div>
+      <div><span>Plane (XY)</span><span id="cPlane">—</span></div>
+      <div style="font-weight:700"><span>Total (body + plane)</span><span id="cTotal">—</span></div>
+    </div>
+
+    <div class="credits">
+      Export: <button id="exportOBJ" class="btn" style="background:#166534">Export OBJ</button>
+      <div style="margin-top:8px">Tip: increase segments to see triangle counts grow. The code merges geometries to compute a true triangle count of the final combined mesh.</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">Controls: Left-drag Rotate • Right-drag Pan • Scroll Zoom • Double-click to center</div>
+
+<!-- THREE.js via CDN -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.156.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.156.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.156.0/examples/js/exporters/OBJExporter.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.156.0/examples/js/utils/BufferGeometryUtils.js"></script>
+
+<script>
+// Utility: count triangles for a BufferGeometry
+function triangleCount(geom){
+  if(!geom) return 0;
+  const index = geom.index;
+  if(index) return index.count / 3;
+  const pos = geom.attributes.position;
+  return pos.count / 3;
+}
+
+// Scene setup
+const container = document.getElementById('canvas-wrap');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x071224);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(container.clientWidth, container.clientHeight);
+container.appendChild(renderer.domElement);
+
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 1000);
+camera.position.set(5,5,7);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+// Lights
+const hemi = new THREE.HemisphereLight(0xcfefff, 0x202040, 0.9);
+scene.add(hemi);
+const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+dir.position.set(5,12,7);
+scene.add(dir);
+
+// Group for the character
+let villingGroup = new THREE.Group();
+scene.add(villingGroup);
+
+// Materials
+let mat = new THREE.MeshStandardMaterial({color:0xd6b7f7,metalness:0.1,roughness:0.6});
+let matWire = new THREE.MeshStandardMaterial({color:0xffffff,wireframe:true});
+let currentWire = false;
+
+// Plane holder
+let planeMesh;
+
+// GUI references
+const headSeg = document.getElementById('headSeg');
+const bodySeg = document.getElementById('bodySeg');
+const limbSeg = document.getElementById('limbSeg');
+const planeSeg = document.getElementById('planeSeg');
+const rebuild = document.getElementById('rebuild');
+const toggleWire = document.getElementById('toggleWire');
+const exportOBJ = document.getElementById('exportOBJ');
+
+// Label bindings
+const headSegLabel = document.getElementById('headSegLabel');
+const bodySegLabel = document.getElementById('bodySegLabel');
+const limbSegLabel = document.getElementById('limbSegLabel');
+const planeSegLabel = document.getElementById('planeSegLabel');
+
+// Count fields
+const cHead = document.getElementById('cHead');
+const cTorso = document.getElementById('cTorso');
+const cLLeg = document.getElementById('cLLeg');
+const cRLeg = document.getElementById('cRLeg');
+const cLArm = document.getElementById('cLArm');
+const cRArm = document.getElementById('cRArm');
+const cSeat = document.getElementById('cSeat');
+const cPlane = document.getElementById('cPlane');
+const cTotal = document.getElementById('cTotal');
+
+// Build villing with parameters
+function buildVilling(){
+  // clear previous
+  while(villingGroup.children.length) villingGroup.remove(villingGroup.children[0]);
+  if(planeMesh){ scene.remove(planeMesh); planeMesh.geometry.dispose(); }
+
+  const hs = parseInt(headSeg.value);
+  const bs = parseInt(bodySeg.value);
+  const ls = parseInt(limbSeg.value);
+  const ps = parseInt(planeSeg.value);
+
+  headSegLabel.textContent = hs;
+  bodySegLabel.textContent = bs;
+  limbSegLabel.textContent = ls;
+  planeSegLabel.textContent = ps;
+
+  // Head: sphere
+  const headGeom = new THREE.SphereBufferGeometry(0.45, hs, Math.max(4, Math.floor(hs/2)));
+  const headMesh = new THREE.Mesh(headGeom, currentWire ? matWire : mat);
+  headMesh.position.set(0,1.6,0);
+  villingGroup.add(headMesh);
+
+  // Torso: rounded cylinder (using cylinder)
+  const torsoGeom = new THREE.CapsuleGeometry(0.48, 0.6, 4, bs);
+  const torsoMesh = new THREE.Mesh(torsoGeom, currentWire ? matWire : mat);
+  torsoMesh.position.set(0,1.0,0);
+  villingGroup.add(torsoMesh);
+
+  // Arms (two cylinders) — posed relaxed
+  const armGeom = new THREE.CylinderBufferGeometry(0.12,0.12,0.8,ls,1,true);
+  const leftArm = new THREE.Mesh(armGeom, currentWire ? matWire : mat);
+  leftArm.position.set(-0.65,1.15,0);
+  leftArm.rotation.z = Math.PI/6;
+  villingGroup.add(leftArm);
+  const rightArm = leftArm.clone();
+  rightArm.position.set(0.65,1.15,0);
+  rightArm.rotation.z = -Math.PI/6;
+  villingGroup.add(rightArm);
+
+  // Legs — bent to be 'sitting' on plane
+  const legGeom = new THREE.CylinderBufferGeometry(0.14,0.16,0.9,ls,1,true);
+  const leftLeg = new THREE.Mesh(legGeom, currentWire ? matWire : mat);
+  leftLeg.position.set(-0.28,0.45,0);
+  leftLeg.rotation.x = -Math.PI/2.8; // bent
+  villingGroup.add(leftLeg);
+  const rightLeg = leftLeg.clone();
+  rightLeg.position.set(0.28,0.45,0);
+  rightLeg.rotation.x = -Math.PI/2.8;
+  villingGroup.add(rightLeg);
+
+  // Seat / cushion - a torus or box
+  const seatGeom = new THREE.TorusBufferGeometry(0.6, 0.18, 16, Math.max(8, bs));
+  const seat = new THREE.Mesh(seatGeom, currentWire ? matWire : mat);
+  seat.position.set(0,0.6,0);
+  seat.rotation.x = Math.PI/2;
+  villingGroup.add(seat);
+
+  // Slight scale and orientation to make it look nice
+  villingGroup.scale.set(1.1,1.1,1.1);
+
+  // Create plane (xy plane) — big and centered at y=0
+  const planeSize = 20;
+  const planeGeom = new THREE.PlaneBufferGeometry(planeSize, planeSize, ps, ps);
+  planeGeom.rotateX(-Math.PI/2); // align with XZ in three, but we'll treat XY conceptually — we keep it as seat ground at y=0
+  planeMesh = new THREE.Mesh(planeGeom, new THREE.MeshStandardMaterial({color:0x0e2740,side:THREE.DoubleSide,roughness:1,metalness:0}));
+  planeMesh.position.set(0,0,0);
+  scene.add(planeMesh);
+
+  // Position villing so she's 'sitting' — ensure torso above plane
+  villingGroup.position.y = 0.18;
+
+  // Compute triangle counts per part
+  // Note: geometries created above may be indexed — we'll compute per geometry directly
+  const counts = {
+    head: triangleCount(headGeom),
+    torso: triangleCount(torsoGeom.index?torsoGeom:torsoGeom),
+    leftLeg: triangleCount(legGeom),
+    rightLeg: triangleCount(legGeom),
+    leftArm: triangleCount(armGeom),
+    rightArm: triangleCount(armGeom),
+    seat: triangleCount(seatGeom),
+    plane: triangleCount(planeGeom)
+  };
+
+  // Merge body geometries to get combined body triangle count
+  // We'll clone meshes and apply matrices, merging BufferGeometries
+  const geomsToMerge = [];
+  villingGroup.traverse(obj=>{
+    if(obj.isMesh){
+      const g = obj.geometry.clone();
+      g.applyMatrix4(obj.matrix);
+      geomsToMerge.push(g);
+    }
+  });
+
+  const mergedBody = THREE.BufferGeometryUtils.mergeBufferGeometries(geomsToMerge, true);
+  const mergedBodyTriangles = triangleCount(mergedBody);
+  const planeTriangles = counts.plane;
+  const total = mergedBodyTriangles + planeTriangles;
+
+  // Write counts to UI
+  cHead.textContent = Math.round(counts.head);
+  cTorso.textContent = Math.round(counts.torso);
+  cLLeg.textContent = Math.round(counts.leftLeg);
+  cRLeg.textContent = Math.round(counts.rightLeg);
+  cLArm.textContent = Math.round(counts.leftArm);
+  cRArm.textContent = Math.round(counts.rightArm);
+  cSeat.textContent = Math.round(counts.seat);
+  cPlane.textContent = Math.round(planeTriangles);
+  cTotal.textContent = Math.round(total);
+
+  // For convenience, add a visible merged mesh (optional) — show smooth shading
+  if(scene.getObjectByName('villingMesh')){
+    const old = scene.getObjectByName('villingMesh');
+    old.geometry.dispose();
+    scene.remove(old);
+  }
+  const finalMat = currentWire ? matWire : mat;
+  const mergedMesh = new THREE.Mesh(mergedBody, finalMat);
+  mergedMesh.name = 'villingMesh';
+  mergedMesh.position.copy(villingGroup.position);
+  scene.add(mergedMesh);
+
+  // Hide the group visuals (so we only show the mergedMesh + plane)
+  villingGroup.visible = false;
+}
+
+// Initial build
+buildVilling();
+
+// Animation loop
+function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// Handle resize
+window.addEventListener('resize', ()=>{
+  camera.aspect = container.clientWidth/container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+});
+
+// UI events
+rebuild.addEventListener('click', ()=>{ buildVilling(); });
+[headSeg, bodySeg, limbSeg, planeSeg].forEach(el=>el.addEventListener('input', ()=>{
+  // live label update
+  headSegLabel.textContent = headSeg.value;
+  bodySegLabel.textContent = bodySeg.value;
+  limbSegLabel.textContent = limbSeg.value;
+  planeSegLabel.textContent = planeSeg.value;
+}));
+
+toggleWire.addEventListener('click', ()=>{
+  currentWire = !currentWire;
+  // rebuild with new material mode
+  matWire = new THREE.MeshStandardMaterial({color:0xffffff,wireframe:true});
+  buildVilling();
+});
+
+// Export OBJ of merged mesh and plane combined
+exportOBJ.addEventListener('click', ()=>{
+  const exporter = new THREE.OBJExporter();
+  // gather merged mesh & plane
+  const toExport = new THREE.Group();
+  const v = scene.getObjectByName('villingMesh');
+  if(v) toExport.add(v.clone());
+  if(planeMesh) toExport.add(planeMesh.clone());
+  const result = exporter.parse(toExport);
+  // create blob
+  const blob = new Blob([result], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'villing_scene.obj';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// Double-click to recenter camera on villing
+renderer.domElement.addEventListener('dblclick', ()=>{
+  controls.target.set(0,1.0,0);
+});
+
+// Initial camera framing
+controls.target.set(0,1.0,0);
+controls.update();
+
+</script>
+</body>
+</html>
